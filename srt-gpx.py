@@ -3,8 +3,12 @@ import re
 import gpxpy.gpx
 from datetime import datetime
 
-# Regular expression pattern for extracting the relevant data
-pattern = re.compile(r'\[(latitude|longitude|rel_alt|abs_alt): ([\d.-]+)\]')
+# Regular expression pattern to match the GPS info
+pattern = re.compile(r'\[(\w+): ([\-\d\.]+)\]')
+
+# Regular expression pattern to match the altitude info
+alt_pattern = re.compile(r'\[rel_alt: [\-\d\.]+ abs_alt: ([\-\d\.]+)\]')
+
 
 # Directory paths
 input_dir = 'input'
@@ -45,26 +49,21 @@ for filename in os.listdir(input_dir):
                 # Parse the GPS info from the fifth line
                 gps_info = lines[4]
 
-                # Use a regular expression to extract the latitude, longitude, and altitude
+                # Use a regular expression to extract the latitude and longitude
                 data = dict(pattern.findall(gps_info))
 
                 if 'latitude' in data and 'longitude' in data:
                     lat, lon = float(data['latitude']), float(data['longitude'])
 
-                    # Split the altitude information into relative and absolute altitudes
-                    rel_alt = data.get('rel_alt')
-                    abs_alt = data.get('abs_alt')
-
-                    # If both relative and absolute altitudes are present, use the absolute one
-                    if abs_alt:
-                        abs_alt = float(abs_alt.split()[0])
-                    elif rel_alt:
-                        abs_alt = float(rel_alt.split()[0])
+                    # Extract altitude
+                    alt_match = alt_pattern.search(gps_info)
+                    if alt_match:
+                        alt = float(alt_match.group(1))
                     else:
-                        abs_alt = None
+                        alt = None  # if no absolute altitude data is available, set it to None
 
                     # Create a new GPX point and add it to the segment
-                    gpx_segment.points.append(gpxpy.gpx.GPXTrackPoint(lat, lon, elevation=abs_alt, time=timestamp))
+                    gpx_segment.points.append(gpxpy.gpx.GPXTrackPoint(lat, lon, elevation=alt, time=timestamp))
 
         # Write the GPX file
         output_filename = os.path.splitext(filename)[0] + '.gpx'
